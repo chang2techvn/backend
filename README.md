@@ -150,6 +150,11 @@ Follow these steps to link your app to GitHub:
 
 [Learn more in the docs](https://encore.dev/docs/how-to/github)
 
+## CI/CD Status
+
+[![Deploy to Encore Cloud](https://github.com/[your-github-username]/[your-repo-name]/actions/workflows/deploy.yml/badge.svg)](https://github.com/[your-github-username]/[your-repo-name]/actions/workflows/deploy.yml)
+
+This project is automatically deployed to Encore Cloud when changes are pushed to the main branch.
 
 ## Testing
 
