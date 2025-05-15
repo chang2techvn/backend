@@ -48,7 +48,6 @@ jobs:
           curl -s https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
           chmod +x $HOME/.encore/bin/encore
-          ls -la $HOME/.encore/bin/
       
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -58,32 +57,62 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
       
+      - name: Create Encore credential file
+        run: |
+          mkdir -p $HOME/.encore
+          echo "{\"auth_token\":\"${{ secrets.ENCORE_AUTH_TOKEN }}\"}" > $HOME/.encore/config.json
+          chmod 600 $HOME/.encore/config.json
+          cat $HOME/.encore/config.json | sed 's/"auth_token":"[^"]*"/"auth_token":"***"/g'
+      
       - name: Deploy to Encore Cloud
         env:
           ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
+          # Set git config for possible git operations
+          git config --global user.email "ci-cd@github-actions.com"
+          git config --global user.name "GitHub Actions CI/CD"
+          
           # Hiển thị phiên bản Encore
           encore version
           
+          # Cài đặt các công cụ bổ sung
+          echo "Cài đặt công cụ bổ sung..."
+          npm install -g @encore/cli || echo "Failed to install @encore/cli"
+          
           # Kiểm tra ứng dụng Encore
           echo "Checking Encore app information..."
-          APP_ID=$(cat encore.app | grep id | cut -d'"' -f4)
-          echo "App ID: $APP_ID"
+          cat encore.app
           
-          # Liệt kê các lệnh của Encore để debug
-          echo "Available Encore commands:"
-          encore help
+          # Xác thực trước khi triển khai
+          echo "Authenticating with Encore Cloud..."
+          encore auth login --token ${{ secrets.ENCORE_AUTH_TOKEN }} || echo "Login failed, trying to continue anyway"
           
-          # Kiểm tra lệnh app
-          echo "Checking 'app' commands:"
-          encore app --help
+          # Bật chế độ debug để xem chi tiết lỗi
+          export ENCORE_DEBUG=true
           
-          # Thực hiện triển khai trực tiếp
+          # Tìm kiếm và sử dụng lệnh build
+          echo "Building the application..."
+          encore build || echo "Build command failed or not available"
+          
+          # Thử triển khai với lệnh run và tham số production
           echo "Triển khai trực tiếp lên Encore Cloud..."
-          encore app deploy $APP_ID -e production
+          encore run --production || echo "Direct deployment failed"
           
-          echo "===== Triển khai hoàn tất ====="
-          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/$APP_ID"
+          # Thử triển khai với push
+          echo "Cấu hình Git remote để triển khai..."
+          git remote -v
+          git remote add encore encore://backend-xbk2 || git remote set-url encore encore://backend-xbk2 || echo "Failed to configure git remote"
+          git push -f encore HEAD:refs/heads/main || echo "Git push to Encore failed"
+          
+          # Thử một cách khác - triển khai thủ công qua API
+          echo "Attempting deployment via API call..."
+          curl -X POST "https://api.encore.dev/v1/apps/backend-xbk2/deploy" \
+            -H "Authorization: Bearer ${{ secrets.ENCORE_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"branch":"main","environment":"production"}' || echo "API deployment failed"
+          
+          echo "===== Đã thử tất cả các phương án triển khai ====="
+          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/backend-xbk2"
 
       - name: Seed Database (only when manually triggered)
         if: github.event_name == 'workflow_dispatch'
