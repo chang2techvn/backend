@@ -47,6 +47,8 @@ jobs:
         run: |
           curl -s https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
+          chmod +x $HOME/.encore/bin/encore
+          ls -la $HOME/.encore/bin/
       
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -56,46 +58,37 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
       
-      - name: Deploy to Encore Cloud (via direct push)
+      - name: Deploy to Encore Cloud
+        env:
+          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
           # Hiển thị phiên bản Encore
-          $HOME/.encore/bin/encore version
-          
-          # Tạo file credential với token
-          echo "Creating temporary encore credential file..."
-          mkdir -p $HOME/.encore
-          echo "{\"auth_token\":\"${{ secrets.ENCORE_AUTH_TOKEN }}\"}" > $HOME/.encore/config.json
-          
-          # Hiện thông tin config (đã che token)
-          echo "Config file created:"
-          cat $HOME/.encore/config.json | sed 's/"auth_token":"[^"]*"/"auth_token":"***"/g'
+          encore version
           
           # Kiểm tra ứng dụng Encore
           echo "Checking Encore app information..."
           APP_ID=$(cat encore.app | grep id | cut -d'"' -f4)
           echo "App ID: $APP_ID"
           
-          # Tải plugin Encore git-remote
-          echo "Xác nhận plugin git-remote-encore trong PATH:"
-          find $HOME/.encore -name "git-remote-encore" -type f
+          # Liệt kê các lệnh của Encore để debug
+          echo "Available Encore commands:"
+          encore help
           
-          # Cài đặt thêm Encore CLI nếu cần
-          echo "Cài đặt thêm Encore CLI để đảm bảo đầy đủ công cụ..."
-          npm install -g encore
+          # Kiểm tra lệnh app
+          echo "Checking 'app' commands:"
+          encore app --help
           
-          # Xác thực trực tiếp với token
-          echo "Đăng nhập vào Encore với token (không hiển thị token)..."
-          NODE_OPTIONS="--max-old-space-size=4096" npx encore auth login --token ${{ secrets.ENCORE_AUTH_TOKEN }} || echo "Login không thành công, thử phương thức khác"
-          
-          # Triển khai trực tiếp với lệnh push
+          # Thực hiện triển khai trực tiếp
           echo "Triển khai trực tiếp lên Encore Cloud..."
-          NODE_OPTIONS="--max-old-space-size=4096" npx encore push || npx encore deploy || $HOME/.encore/bin/encore push || echo "Push không thành công"
-                    
+          encore app deploy $APP_ID -e production
+          
           echo "===== Triển khai hoàn tất ====="
           echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/$APP_ID"
 
       - name: Seed Database (only when manually triggered)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
           # Đợi một chút để đảm bảo deployment đã hoàn tất
           sleep 30
