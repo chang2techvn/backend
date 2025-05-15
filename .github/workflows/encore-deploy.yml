@@ -24,7 +24,11 @@ jobs:
       - name: Install Encore CLI
         run: |
           curl -L https://encore.dev/install.sh | bash
-          export PATH=$PATH:$HOME/.encore/bin
+          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+          
+      - name: Verify Encore CLI installation
+        run: |
+          which encore
           encore version
 
       - name: Authenticate with Encore
