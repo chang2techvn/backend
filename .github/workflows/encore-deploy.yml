@@ -61,28 +61,29 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
       
-      - name: Deploy to Encore Cloud using Git Integration
-        env:
-          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
+      - name: Configure Encore auth manually
         run: |
-          # Sử dụng biến môi trường ENCORE_AUTH_TOKEN thay vì đăng nhập trực tiếp
-          echo "Cấu hình xác thực với Encore..."
+          # Tạo thư mục cấu hình Encore
+          mkdir -p $HOME/.encore
           
+          # Tạo file cấu hình cho Encore CLI với token
+          echo '{
+            "auth_token": "${{ secrets.ENCORE_AUTH_TOKEN }}"
+          }' > $HOME/.encore/config.json
+          
+          # Hiển thị nội dung file config (ẩn token)
+          echo "Đã tạo file cấu hình Encore:"
+          cat $HOME/.encore/config.json | sed 's/"auth_token": ".*"/"auth_token": "***"/g'
+      
+      - name: Deploy to Encore Cloud using Git Integration
+        run: |
           # Hiển thị phiên bản Encore
           $HOME/.encore/bin/encore version
-          
-          # Kiểm tra app ID từ file encore.app
-          APP_ID=$(cat encore.app | grep id | cut -d'"' -f4)
-          echo "App ID: $APP_ID"
-          
-          # Thực hiện link với app trên Encore Cloud
-          echo "Linking app with Encore Cloud..."
-          $HOME/.encore/bin/encore app link $APP_ID
           
           # Cấu hình Git remote cho Encore
           echo "Cấu hình Git remote cho Encore..."
           git remote remove encore || true
-          git remote add encore "encore://$APP_ID.git"
+          git remote add encore "encore://backend-xbk2.git"
           
           # Hiển thị các remote
           echo "Danh sách remote:"
@@ -91,37 +92,32 @@ jobs:
           # Cấu hình SSH để tự động chấp nhận host key
           echo "Cấu hình SSH cho Encore..."
           mkdir -p ~/.ssh
-          # Thêm cả encore.dev và git.encore.dev vào known_hosts
           ssh-keyscan encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan git.encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan git.encore.cloud >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan app.encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
           
-          # Thiết lập SSH để tự động chấp nhận hosts mới (chỉ cho quá trình CI/CD này)
+          # Thiết lập SSH để tự động chấp nhận hosts mới
           echo "StrictHostKeyChecking no" > ~/.ssh/config
           chmod 600 ~/.ssh/config
           
+          # Thử sử dụng ssh-agent 
+          eval "$(ssh-agent -s)"
+          
           # Đẩy code lên Encore
           echo "Đang triển khai lên Encore Cloud..."
-          git push encore HEAD:refs/heads/main -f
+          GIT_SSH_COMMAND="ssh -v" git push -f encore HEAD:refs/heads/main
           
           echo "===== Triển khai hoàn tất ====="
-          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/$APP_ID"
+          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/backend-xbk2"
 
       - name: Seed Database (only when manually triggered)
         if: github.event_name == 'workflow_dispatch'
-        env:
-          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
           # Đợi một chút để đảm bảo deployment đã hoàn tất
           sleep 30
           
-          # Lấy URL của ứng dụng
-          APP_URL=$($HOME/.encore/bin/encore app url 2>/dev/null || $HOME/.encore/bin/encore url 2>/dev/null || echo "")
-          
-          # Nếu có URL, thực hiện seed database
-          if [ -n "$APP_URL" ]; then
-            echo "Seeding database at: $APP_URL/api/seed"
-            curl -X POST "$APP_URL/api/seed"
-          else
-            echo "Could not determine app URL, skipping database seed"
-          fi
+          # Sử dụng URL cố định vì chúng ta biết app ID
+          APP_URL="https://backend-xbk2-production.encr.app"
+          echo "Seeding database at: $APP_URL/api/seed"
+          curl -X POST "$APP_URL/api/seed" || echo "Failed to seed database"
