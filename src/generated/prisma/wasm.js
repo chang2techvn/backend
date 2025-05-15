@@ -159,6 +159,15 @@ exports.Prisma.TaskScalarFieldEnum = {
   projectId: 'projectId'
 };
 
+exports.Prisma.RefreshTokenScalarFieldEnum = {
+  id: 'id',
+  token: 'token',
+  userId: 'userId',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  revokedAt: 'revokedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -183,7 +192,8 @@ exports.Prisma.ModelName = {
   User: 'User',
   Project: 'Project',
   ProjectMember: 'ProjectMember',
-  Task: 'Task'
+  Task: 'Task',
+  RefreshToken: 'RefreshToken'
 };
 
 /**

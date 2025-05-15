@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main  # Hoặc master, tùy theo branch chính của bạn
+  pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:  # Cho phép kích hoạt thủ công từ GitHub
 
 jobs:
@@ -13,7 +15,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,13 +29,50 @@ jobs:
       
       - name: Generate Prisma client
         run: npm run db:generate
+
+      - name: Run tests
+        run: npm test
+        # Tests should fail the workflow if they fail
       
       - name: Install Encore CLI
         run: |
           curl -L https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
       
-      - name: Deploy to Encore Cloud
+      - name: Login to Encore
+        if: github.event_name != 'pull_request'  # Only login for actual deploys, not PRs
         env:
           ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
-        run: encore app push --prod
+        run: |
+          # Login using the authentication token
+          encore auth login --token "$ENCORE_AUTH_TOKEN"
+      
+      - name: Set up deployment environment
+        if: github.event_name != 'pull_request'
+        run: |
+          # Determine environment based on branch
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "ENCORE_ENV=production" >> $GITHUB_ENV
+          else
+            echo "ENCORE_ENV=staging" >> $GITHUB_ENV
+          fi
+          
+      - name: Deploy to Encore Cloud
+        if: github.event_name != 'pull_request'
+        run: encore deploy --environment ${{ env.ENCORE_ENV }}
+        
+      - name: Display deployment URL
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "✅ Application deployed to Encore Cloud"
+          echo "Check deployment status at: https://app.encore.dev"
+          
+      - name: Create preview environment (PR)
+        if: github.event_name == 'pull_request'
+        env:
+          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
+        run: |
+          # For pull requests, we create preview environments instead of deploying
+          echo "Creating preview environment for PR #${{ github.event.pull_request.number }}"
+          encore auth login --token "$ENCORE_AUTH_TOKEN"
+          encore preview create --pr ${{ github.event.pull_request.number }}

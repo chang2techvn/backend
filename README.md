@@ -1,6 +1,6 @@
-# REST API Starter
+# Task Management API
 
-This is a RESTful API Starter with a single Hello World API endpoint.
+A REST API built with Encore.ts for task and project management.
 
 ## Prerequisites 
 
@@ -9,14 +9,6 @@ This is a RESTful API Starter with a single Hello World API endpoint.
 - **Linux:** `curl -L https://encore.dev/install.sh | bash`
 - **Windows:** `iwr https://encore.dev/install.ps1 | iex`
 
-## Create app
-
-Create a local app from this template:
-
-```bash
-encore app create my-app-name --example=ts/hello-world
-```
-
 ## Run app locally
 
 Run this command from your application's root folder:
@@ -24,19 +16,14 @@ Run this command from your application's root folder:
 ```bash
 encore run
 ```
+
 ### Using the API
 
-To see that your app is running, you can ping the API.
-
-```bash
-curl http://localhost:4000/hello/World
-```
+The API provides endpoints for user management, authentication, projects, and tasks.
 
 ### Local Development Dashboard
 
-While `encore run` is running, open [http://localhost:9400/](http://localhost:9400/) to access Encore's [local developer dashboard](https://encore.dev/docs/observability/dev-dash).
-
-Here you can see traces for all requests that you made, see your architecture diagram (just a single service for this simple example), and view API documentation in the Service Catalog.
+While `encore run` is running, open [http://localhost:9400/](http://localhost:9400/) to access Encore's local developer dashboard.
 
 ## Development
 
@@ -122,44 +109,53 @@ There are many more features to explore in Encore.ts, for example:
 
 ## Deployment
 
-### Self-hosting
+### CI/CD with GitHub Actions
 
-See the [self-hosting instructions](https://encore.dev/docs/self-host/docker-build) for how to use `encore build docker` to create a Docker image and configure it.
+This project is configured for automatic deployment to Encore Cloud using GitHub Actions. The workflow is triggered on pushes to the main branch and can also be manually triggered.
 
-### Encore Cloud Platform
+#### Setup instructions:
 
-Deploy your application to a free staging environment in Encore's development cloud using `git push encore`:
+1. Create an Encore auth token:
+   - Go to [app.encore.dev](https://app.encore.dev)
+   - Navigate to Settings → Auth Tokens
+   - Create a new CI/CD token
+
+2. Add the token to your GitHub repository secrets:
+   - Go to your GitHub repository → Settings → Secrets and variables → Actions
+   - Add a new repository secret with name `ENCORE_AUTH_TOKEN` and paste your token as the value
+
+3. Push changes to the main branch to trigger automatic deployment
+
+### Manually deploying to Encore Cloud
+
+You can manually deploy your application using the Encore CLI:
 
 ```bash
-git add -A .
-git commit -m 'Commit message'
-git push encore
+# Login to Encore Cloud (first time only)
+encore auth login
+
+# Deploy the application
+encore deploy
 ```
-
-You can also open your app in the [Cloud Dashboard](https://app.encore.dev) to integrate with GitHub, or connect your AWS/GCP account, enabling Encore to automatically handle cloud deployments for you.
-
-## Link to GitHub
-
-Follow these steps to link your app to GitHub:
-
-1. Create a GitHub repo, commit and push the app.
-2. Open your app in the [Cloud Dashboard](https://app.encore.dev).
-3. Go to **Settings ➔ GitHub** and click on **Link app to GitHub** to link your app to GitHub and select the repo you just created.
-4. To configure Encore to automatically trigger deploys when you push to a specific branch name, go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the **Branch name** and hit **Save**.
-5. Commit and push a change to GitHub to trigger a deploy.
-
-[Learn more in the docs](https://encore.dev/docs/how-to/github)
 
 ## CI/CD Status
 
 [![Deploy to Encore Cloud](https://github.com/[your-github-username]/[your-repo-name]/actions/workflows/deploy.yml/badge.svg)](https://github.com/[your-github-username]/[your-repo-name]/actions/workflows/deploy.yml)
 
-This project is automatically deployed to Encore Cloud when changes are pushed to the main branch.
+## Database Migrations
 
-## Testing
-
-To run tests, configure the `test` command in your `package.json` to the test runner of your choice, and then use the command `encore test` from the CLI. The `encore test` command sets up all the necessary infrastructure in test mode before handing over to the test runner. [Learn more](https://encore.dev/docs/ts/develop/testing)
+The application uses Prisma for database management. To apply migrations in production:
 
 ```bash
-encore test
+# Run migrations on the production database
+encore db migrations apply
+```
+
+## Environment Management
+
+Encore Cloud provides different environments (development, staging, production). You can specify which environment to deploy to:
+
+```bash
+# Deploy to a specific environment
+encore deploy --environment production
 ```
