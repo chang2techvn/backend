@@ -62,10 +62,11 @@ jobs:
         run: npm ci || npm install
       
       - name: Deploy to Encore Cloud using Git Integration
+        env:
+          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
-          # Đăng nhập với Auth Key
-          echo "Đăng nhập vào Encore..."
-          $HOME/.encore/bin/encore auth login --auth-key=${{ secrets.ENCORE_AUTH_TOKEN }}
+          # Sử dụng biến môi trường ENCORE_AUTH_TOKEN thay vì đăng nhập trực tiếp
+          echo "Cấu hình xác thực với Encore..."
           
           # Hiển thị phiên bản Encore
           $HOME/.encore/bin/encore version
@@ -93,9 +94,9 @@ jobs:
           # Thêm cả encore.dev và git.encore.dev vào known_hosts
           ssh-keyscan encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan git.encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan git.encore.cloud >> ~/.ssh/known_hosts 2>/dev/null || true
           
           # Thiết lập SSH để tự động chấp nhận hosts mới (chỉ cho quá trình CI/CD này)
-          mkdir -p ~/.ssh
           echo "StrictHostKeyChecking no" > ~/.ssh/config
           chmod 600 ~/.ssh/config
           
@@ -108,6 +109,8 @@ jobs:
 
       - name: Seed Database (only when manually triggered)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
         run: |
           # Đợi một chút để đảm bảo deployment đã hoàn tất
           sleep 30
