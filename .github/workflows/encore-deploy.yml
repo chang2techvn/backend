@@ -48,11 +48,6 @@ jobs:
           curl -s https://encore.dev/install.sh | bash
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
       
-      - name: Set up Git for Encore
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-      
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -61,55 +56,43 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
       
-      - name: Configure Encore auth manually
-        run: |
-          # Tạo thư mục cấu hình Encore
-          mkdir -p $HOME/.encore
-          
-          # Tạo file cấu hình cho Encore CLI với token
-          echo '{
-            "auth_token": "${{ secrets.ENCORE_AUTH_TOKEN }}"
-          }' > $HOME/.encore/config.json
-          
-          # Hiển thị nội dung file config (ẩn token)
-          echo "Đã tạo file cấu hình Encore:"
-          cat $HOME/.encore/config.json | sed 's/"auth_token": ".*"/"auth_token": "***"/g'
-      
-      - name: Deploy to Encore Cloud using Git Integration
+      - name: Deploy to Encore Cloud (via direct push)
         run: |
           # Hiển thị phiên bản Encore
           $HOME/.encore/bin/encore version
           
-          # Cấu hình Git remote cho Encore
-          echo "Cấu hình Git remote cho Encore..."
-          git remote remove encore || true
-          git remote add encore "encore://backend-xbk2.git"
+          # Tạo file credential với token
+          echo "Creating temporary encore credential file..."
+          mkdir -p $HOME/.encore
+          echo "{\"auth_token\":\"${{ secrets.ENCORE_AUTH_TOKEN }}\"}" > $HOME/.encore/config.json
           
-          # Hiển thị các remote
-          echo "Danh sách remote:"
-          git remote -v
+          # Hiện thông tin config (đã che token)
+          echo "Config file created:"
+          cat $HOME/.encore/config.json | sed 's/"auth_token":"[^"]*"/"auth_token":"***"/g'
           
-          # Cấu hình SSH để tự động chấp nhận host key
-          echo "Cấu hình SSH cho Encore..."
-          mkdir -p ~/.ssh
-          ssh-keyscan encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan git.encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan git.encore.cloud >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan app.encore.dev >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Kiểm tra ứng dụng Encore
+          echo "Checking Encore app information..."
+          APP_ID=$(cat encore.app | grep id | cut -d'"' -f4)
+          echo "App ID: $APP_ID"
           
-          # Thiết lập SSH để tự động chấp nhận hosts mới
-          echo "StrictHostKeyChecking no" > ~/.ssh/config
-          chmod 600 ~/.ssh/config
+          # Tải plugin Encore git-remote
+          echo "Xác nhận plugin git-remote-encore trong PATH:"
+          find $HOME/.encore -name "git-remote-encore" -type f
           
-          # Thử sử dụng ssh-agent 
-          eval "$(ssh-agent -s)"
+          # Cài đặt thêm Encore CLI nếu cần
+          echo "Cài đặt thêm Encore CLI để đảm bảo đầy đủ công cụ..."
+          npm install -g encore
           
-          # Đẩy code lên Encore
-          echo "Đang triển khai lên Encore Cloud..."
-          GIT_SSH_COMMAND="ssh -v" git push -f encore HEAD:refs/heads/main
+          # Xác thực trực tiếp với token
+          echo "Đăng nhập vào Encore với token (không hiển thị token)..."
+          NODE_OPTIONS="--max-old-space-size=4096" npx encore auth login --token ${{ secrets.ENCORE_AUTH_TOKEN }} || echo "Login không thành công, thử phương thức khác"
           
+          # Triển khai trực tiếp với lệnh push
+          echo "Triển khai trực tiếp lên Encore Cloud..."
+          NODE_OPTIONS="--max-old-space-size=4096" npx encore push || npx encore deploy || $HOME/.encore/bin/encore push || echo "Push không thành công"
+                    
           echo "===== Triển khai hoàn tất ====="
-          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/backend-xbk2"
+          echo "Kiểm tra trạng thái triển khai tại: https://app.encore.dev/$APP_ID"
 
       - name: Seed Database (only when manually triggered)
         if: github.event_name == 'workflow_dispatch'
