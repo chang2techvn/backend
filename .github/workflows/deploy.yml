@@ -34,4 +34,4 @@ jobs:
       - name: Deploy to Encore Cloud
         env:
           ENCORE_AUTH_TOKEN: ${{ secrets.ENCORE_AUTH_TOKEN }}
-        run: encore deploy --prod
+        run: encore app push --prod
