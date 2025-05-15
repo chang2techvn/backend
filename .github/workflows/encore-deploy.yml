@@ -32,7 +32,7 @@ jobs:
           encore version
 
       - name: Authenticate with Encore
-        run: encore auth login --ci --token ${{ secrets.ENCORE_AUTH_TOKEN }}
+        run: encore auth login --auth-key ${{ secrets.ENCORE_AUTH_TOKEN }}
 
       - name: Deploy to Encore Cloud
         run: encore app deploy --prod
