@@ -21,38 +21,17 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Install Encore CLI
-        run: |
-          curl -L https://encore.dev/install.sh | bash
-          echo "$HOME/.encore/bin" >> $GITHUB_PATH
-          
-      - name: Verify Encore CLI installation
-        run: |
-          which encore
-          encore version
+      # Sử dụng Encore GitHub Action chính thức
+      - name: Deploy to Encore
+        uses: encoredev/github-action@v1
+        with:
+          auth_token: ${{ secrets.ENCORE_AUTH_TOKEN }}
+          command: deploy --production
 
-      - name: Authenticate with Encore
-        run: encore auth login --auth-key ${{ secrets.ENCORE_AUTH_TOKEN }}
-
-      - name: Check available commands
-        run: |
-          encore --help
-          encore push --help || echo "push command not available"
-          encore deploy --help || echo "deploy command not available"
-
-      - name: Deploy to Encore Cloud
-        run: |
-          # Try different deploy commands based on Encore CLI version
-          encore deploy || encore push || encore env push prod || echo "Failed to find deploy command"
-
-      - name: Seed Database (only on first deploy or when requested)
-        if: ${{ github.event_name == 'workflow_dispatch' }} 
-        run: |
-          # Get the API URL from Encore
-          API_URL=$(encore app url --prod 2>/dev/null || encore url 2>/dev/null || encore env url prod 2>/dev/null || echo "Failed to get URL")
-          echo "API URL: $API_URL"
-          
-          # Call the seed API endpoint if URL found
-          if [[ "$API_URL" != *"Failed"* ]]; then
-            curl -X POST $API_URL/api/seed
-          fi
+      # Seed database nếu cần thiết (chỉ khi chạy thủ công)
+      - name: Seed Database (manual trigger only)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: encoredev/github-action@v1
+        with:
+          auth_token: ${{ secrets.ENCORE_AUTH_TOKEN }}
+          command: run -e production -- curl -X POST $(encore app url --production)/api/seed
