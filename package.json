@@ -6,15 +6,28 @@
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^20.5.7",
     "typescript": "^5.2.2",
     "vitest": "^1.5.0"
   },
   "dependencies": {
-    "encore.dev": "^1.46.22"
+    "@prisma/client": "^6.7.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^16.5.0",
+    "encore.dev": "^1.46.22",
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.7.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.13.0"
